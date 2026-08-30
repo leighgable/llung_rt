@@ -1,0 +1,16 @@
+[package]
+name = "continual_learning_runtime"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# The primary engine for graph mutations and embedded CPU execution
+tract-onnx = "0.23"
+
+# Used to target Vulkan iGPUs on your Framework and Thinkpad laptops 
+wonnx = "0.5"
+
+# For tensor shape and data management utilities
+ndarray = "0.15" 
+anyhow = "1.0"
+
