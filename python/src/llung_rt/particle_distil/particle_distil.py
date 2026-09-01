@@ -2,17 +2,23 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from explore import compute_surprisal, aggregate_targets
+
 class ParticleDistil(nn.Module):
     def __init__(
         self,
         model: nn.Module,
         alpha: float = 1.2,
+        beta_start: float = 1.0,
+        total_steps: int = 1000,
         num_particles=4,
         ess_threshold=0.5,
     ):
         super().__init__()
         self.model = model
         self.alpha = alpha
+        self.beta_start = beta_start
+        self.total_steps = total_steps
         self.num_particles = num_particles
         self.ess_threshold = ess_threshold  # resampling trigger
 
@@ -20,12 +26,18 @@ class ParticleDistil(nn.Module):
         self,
         prompt_ids: torch.Tensor,
         demonstration_ids: torch.Tensor,
+        current_step: int,
         max_length: int = 128,
     ):
         """
         Guided Power Sequential Monte Carlo Sampling with
         EXPECTED SEQUENCE-LEVEL ENERGY for self-distillation.
         """
+        progress = min(1.0, current_step / self.total_steps)
+        beta = self.beta_start * (1.0 - progress)
+        use_wta = progress > 0.7
+        
+        
         self.model.eval()
 
         student_particles = prompt_ids.repeat(self.num_particles, 1)
@@ -34,14 +46,19 @@ class ParticleDistil(nn.Module):
         # track cumulative negative log likelihood per particle
         cumulative_nll = torch.zeros(self.num_particles, device=prompt_ids.devide)
 
-        step_teacher_logits = []
+        step_teacher_logits, step_student_logits = [], []
 
         with torch.no_grad():
             for t in range(max_length):
                 # forward pass conditioned on demo
-                teacher_out = self.model(teacher_particles)
-                teacher_logits = teacher_out.logits[:, -1, :] # (N, Vocab)
+                teacher_logits = self.model(
+                    teacher_particles
+                ).logits[:, -1, :] # (N, Vocab)
                 step_teacher_logits.append(teacher_logits)
+                student_logits = self.model(
+                    student_particles
+                ).logits[:, -1, :] # (N, Vocab)
+                step_student_logits.append(student_logits)
 
                 # sample next token with teacher temperature
                 teacher_probs = F.softmax(teacher_logits, dim=-1)
@@ -74,36 +91,27 @@ class ParticleDistil(nn.Module):
                     teacher_particles = teacher_particles[ancestors]
                     cumulative_nll = cumulative_nll[ancestors]
 
-        final_sequence_weights = F.softmax(-self.alpha * cumulative_nll, dim=0) # (N,)
+        surprisal = compute_surprisal(step_teacher_logits, step_student_logits)
+
+        soft_targets, particle_weights, = aggregate_targets(
+            step_teacher_logits, cumulative_nll, surprisal,
+            self.alpha, beta, use_winner_take_all=use_wta,
+        )
+
         # on-policy sequence distillation
         self.model_train()
-
-        teacher_targets = []
-
-        for t in range(max_length):
-            t_logits = step_teacher_logits[t]
-            t_probs = F.softmax(t_logits, dim=-1)
-            # full sequence energy weighting
-            seq_weighted_target = torch.sum(
-                final_sequence_weights.unsqueeze(-1) * t_probs,
-                dim=0,
-            )
-            teacher_targets.append(seq_weighted_target)
-
-        stacked_teacher_targets = torch.stack(teacher_targets, dim=0).unsqueeze(0)
-
-        best_particle_idx = torch.argmax(final_sequence_weights)
-        best_student_seq  = student_particles[best_particle_idx : best_particle_idx + 1]
+        best_idx = torch.argmax(particle_weights)
+        best_student_seq = student_particles[best_idx : best_idx + 1]
 
         student_outputs = self.model(best_student_seq)
-        gen_student_logits = student_outputs.logits[:, prompt_ids.size(1) - 1 : -1,:]
+        gen_student_logits = student_outputs.logits[:, prompt_ids.size(1) - 1 : -1, :]
 
         # forward KL loss
         student_log_probs = F.log_softmax(gen_student_logits, dim=-1)
 
         return F.kl_div(
             student_log_probs,
-            stacked_teacher_targets,
+            soft_targets,
             reduction="batchmean",
         ) 
 

@@ -9,9 +9,9 @@
      for fast inference on resource-constrained devices with some continual
      learning capabilities.
 
- python/src/llung_rt/lora - LoRA adapters trained with continual backprop
+ `python/src/llung_rt/lora` - LoRA adapters trained with continual backprop
 
- python/src/llung_rt/particle_distil - self distillation experiments
+ `python/src/llung_rt/particle_distil` - self distillation experiments
 
- python/src/llung_rt/rl - "streaming" reinforcement learning with a replay buffer
+ `python/src/llung_rt/rl` - "streaming" reinforcement learning with a replay buffer
 
