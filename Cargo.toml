@@ -13,4 +13,5 @@ wonnx = "0.5"
 # For tensor shape and data management utilities
 ndarray = "0.15" 
 anyhow = "1.0"
+tracing-subscriber = "0.3.23"
 

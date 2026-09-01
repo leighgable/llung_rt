@@ -5,32 +5,30 @@ fn main() -> anyhow::Result<()> {
     let model_path = Path::new("model.onnx");
 
     if !model_path.exists() {
-        println!("⚠️ No 'model.onnx' found. Please place a model at the root directory.");
+        tracing::info!("No 'model.onnx' found. Please place a model at the root directory.");
         return Ok(());
     }
 
-    println!("🧠 Loading model graph natively via Tract...");
+    tracing::info!("Loading model graph natively via Tract...");
 
-    // 1. Load the model layout as a mutable structure
-    // This allows you to append nodes, extract weights, or apply custom learning parameters
     let mut model = tract_onnx::onnx().model_for_path(model_path)?;
 
     // Example: Read properties of the graph for custom logic
-    println!("Graph contains {} operation nodes.", model.nodes.len());
+    tracing::info!("Graph contains {} operation nodes.", model.nodes.len());
 
-    // 2. Execution dispatch loop tailored for your laptops
+    // dispatch loop tailored for your gear
     #[cfg(feature = "gpu")]
     {
-        // Try executing via pure Rust Vulkan bindings (Works on Framework & ThinkPad iGPUs)
-        println!("🚀 Dispatching execution plan to Vulkan iGPU via Wonnx...");
+        // try executing via pure Rust Vulkan bindings
+        tracing::info!("Dispatching execution plan to Vulkan iGPU via Wonnx...");
         // let session = wonnx::Session::from_path(model_path).block_on()?;
     }
 
-    // Fallback: Ultra-fast embedded CPU layout execution built by Sonos
-    println!("🐌 Optimizing execution path for laptop x86 CPU...");
+    // fallback to embedded CPU layout execution
+    tracing::info!("Optimizing execution path for laptop x86 CPU...");
     let runnable_plan = model.into_runnable()?;
 
-    println!("✅ Runtime environment configured successfully.");
+    tracing::info!("Runtime environment configured successfully.");
     Ok(())
 }
 
@@ -44,7 +42,7 @@ fn main() -> anyhow::Result<()> {
 //     let model_path = Path::new("model.onnx");
 
 //     if !model_path.exists() {
-//         println!("❌ 'model.onnx' not found. Run python script to export it first.");
+//         tracing::info!("'model.onnx' not found. Run python script to export it first.");
 //         return Ok(());
 //     }
 
@@ -54,14 +52,14 @@ fn main() -> anyhow::Result<()> {
 //     // 2. Parse model structure into a completely mutable graph layout
 //     let mut model = onnx_reader.model_for_path(model_path)?;
 
-//     println!("Original Model Nodes count: {}", model.nodes.len());
+//     tracing::info!("Original Model Nodes count: {}", model.nodes.len());
 
 //     // 3. Scan the graph to find our target placeholder node from PyTorch
 //     let mut target_node_id = None;
 //     for node in model.nodes() {
 //         // Locate nodes derived from the 'continual_layer' namespace
 //         if node.name.contains("continual_layer") {
-//             println!("🎯 Found placeholder node ID: {}, Name: {}", node.id, node.name);
+//             tracing::info!(" Found placeholder node ID: {}, Name: {}", node.id, node.name);
 //             target_node_id = Some(node.id);
 //             break;
 //         }
@@ -73,7 +71,7 @@ fn main() -> anyhow::Result<()> {
 
 //         // Mutate the model graph internally
 //         model.node_mut(id).op = Box::new(custom_node);
-//         println!("⚡ Successfully patched in 'ContinualWeightUpdateOp' node.");
+//         tracing::info!("Successfully patched in 'ContinualWeightUpdateOp' node.");
 //     }
 
 //     // 5. Freeze the graph layout and prepare the highly optimized execution plan
@@ -83,9 +81,9 @@ fn main() -> anyhow::Result<()> {
 //     let input_data = tract_ndarray::Array2::<f32>::zeros((1, 10)); // Match shape of export script
 //     let input_tensor: Tensor = input_data.into();
 
-//     println!("🏃 Running inference test loop...");
+//     tracing::info!("Running inference test loop...");
 //     let outputs = runnable.run(tvec!(input_tensor.into()))?;
 
-//     println!("🏁 Execution complete. Outputs generated: {}", outputs.len());
+//     tracing::info!("Execution complete. Outputs generated: {}", outputs.len());
 //     Ok(())
 // }
