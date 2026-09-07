@@ -15,4 +15,5 @@ wonnx = "0.5"
 ndarray = "0.15" 
 anyhow = "1.0"
 tracing-subscriber = "0.3.23"
+tracing = "0.1.44"
 
