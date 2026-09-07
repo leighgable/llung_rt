@@ -1,0 +1,19 @@
+data:
+  data_path_name: "allenai/Dolci-Instruct-SFT-Tool-Use"
+  header: "messages"
+model:
+  model_name_or_path: "allenai/Olmo-3-7B-Instruct"
+  alpha: 1.2
+  beta_start: 1.0
+  max_length: 512
+  total_steps: 0
+  num_particles: 4
+  ess_threshold: 0.5
+trainer:
+  log_dir: "./runs"
+  checkpoint_dir: "./checkpoints"
+  max_nan_streak: 10
+  stagnation_patience: 150
+  min_loss_delta: 1e-4
+ 
+  

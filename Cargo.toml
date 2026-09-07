@@ -5,7 +5,8 @@ edition = "2021"
 
 [dependencies]
 # The primary engine for graph mutations and embedded CPU execution
-tract-onnx = "0.23"
+ort = "2.0.0-rc.13"
+tract-onnx = "0.23.6"
 
 # Used to target Vulkan iGPUs on your Framework and Thinkpad laptops 
 wonnx = "0.5"

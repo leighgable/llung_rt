@@ -36,7 +36,9 @@ particle_distil.py file, if you want to disable surprisal annealing, just set
 
 Potential datasets:  
  * allenai/Dolci-Instruct-SFT-Tool-Use (from the paper)
- * anything with verifiable answers
+ * allenai/tmax-15k-open-instruct (not from the paper)
+ * anything with verifiable answers - just add the relevant
+     columns to the config.
 
 Potential models:
  * olmo-instruct 7B (from the paper)

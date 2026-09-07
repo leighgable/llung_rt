@@ -22,7 +22,7 @@ class ParticleDistil(nn.Module):
         self.num_particles = num_particles
         self.ess_threshold = ess_threshold  # resampling trigger
 
-    def compute_guided_smc_step(
+    def guided_smc_step(
         self,
         prompt_ids: torch.Tensor,
         demonstration_ids: torch.Tensor,
@@ -98,6 +98,13 @@ class ParticleDistil(nn.Module):
             self.alpha, beta, use_winner_take_all=use_wta,
         )
 
+        smc_metrics = smc_diagnostics(
+            particle_weights=particle_weights,
+            cumulative_nll=cumulative_nll,
+            surprisal=surprisal,
+        )
+        smc_metrics["SMC/Annealed_Beta"] = beta
+
         # on-policy sequence distillation
         self.model_train()
         best_idx = torch.argmax(particle_weights)
@@ -113,9 +120,34 @@ class ParticleDistil(nn.Module):
             student_log_probs,
             soft_targets,
             reduction="batchmean",
-        ) 
+        ), smc_metrics
 
+def smc_diagnostics(particle_weights: torch.Tensor, cumulative_nll: torch.Tensor, surprisal: torch.Tensor) -> dict[str, float]:
+    """
+    diagnostic metrics from SMC particle weights and trajectory energies.
+    """
+    N = particle_weights.size(0)
+    
+    #  [1/N, 1.0]
+    raw_ess = 1.0 / torch.sum(particle_weights ** 2)
+    norm_ess = (raw_ess / N).item()
+    
+    # entropy (in bits)
+    eps = 1e-9
+    entropy = -torch.sum(
+        particle_weights * torch.log2(particle_weights + eps)
+    ).item()
+    
+    # variance
+    nll_variance = torch.var(cumulative_nll).item() if N > 1 else 0.0
+    surprisal_mean = torch.mean(surprisal).item()
 
+    return {
+        "SMC/Normalized_ESS": norm_ess,
+        "SMC/Weight_Entropy_Bits": entropy,
+        "SMC/Trajectory_NLL_Var": nll_variance,
+        "SMC/Mean_Surprisal": surprisal_mean,
+    }
         
 
 # Earlier versions
